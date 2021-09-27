@@ -1,0 +1,15 @@
+[Unit]
+Description=Gomod Simple Module Proxy
+After=network.target
+
+[Service]
+User=gomod
+Group=gomod
+ExecStart=/usr/bin/gomod -cache-dir /aid/gomod-cache
+StandardOutput=journal
+StandardError=journal
+Type=simple
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
