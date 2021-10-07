@@ -10,7 +10,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/sgtcodfish/goproxy"
+	"github.com/sgtcodfish/gomod"
+
+	"github.com/goproxy/goproxy"
 )
 
 var (
@@ -28,7 +30,7 @@ func main() {
 
 	server := &http.Server{
 		Handler: &goproxy.Goproxy{
-			Cacher: goproxy.DirCacher(*cacheDir),
+			Cacher: gomod.DirCacher(*cacheDir),
 		},
 		Addr: fmt.Sprintf("%s:%d", *address, *port),
 	}
