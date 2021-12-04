@@ -1,10 +1,14 @@
 GO=GCO_ENABLED=0 go
 GOFLAGS := -ldflags '-w -s' -trimpath
-DEPS=$(wildcard *.go) go.mod go.sum
+
+GODEPS=cmd/gomod/main.go
+DEPS=$(GODEPS) go.mod go.sum
 
 VERSION := 0.0.1
 
 CTR ?= podman
+
+GOLANGCI_LINT ?= golangci-lint
 
 .PHONY: build
 build: bin/gomod
@@ -14,7 +18,22 @@ clean:
 	@rm -rf bin
 
 .PHONY: ci
-ci: test binaries debs
+ci: test vet fmt golangci-lint binaries debs
+
+.PHONY: vet
+vet:
+	@echo "+ $@"
+	@$(GO) vet $(GODEPS)
+
+.PHONY: fmt
+fmt:
+	@echo "+ $@"
+	@if [[ ! -z "$(shell gofmt -l -s . | grep -v vendor | tee /dev/stderr)" ]]; then exit 1; fi
+
+.PHONY: golangci-lint
+golangci-lint:
+	@echo "+ $@"
+	@$(GOLANGCI_LINT) run
 
 .PHONY: binaries
 binaries: bin/gomod bin/gomod-linux-amd64 bin/gomod-linux-armv7l
@@ -42,6 +61,8 @@ bin/pkg_%/usr/bin/gomod: bin/gomod-linux-% | bin/pkg_%/usr/bin
 	cp $< $@
 
 bin/gomod_$(VERSION)_amd64.deb bin/gomod_$(VERSION)_armv7l.deb: bin/gomod_$(VERSION)_%.deb: bin/pkg_%/usr/bin/gomod | bin
+	@# fpm will refuse to overwrite an existing file so we need to remove first
+	rm -f $@
 	$(CTR) run -it --rm -v $(shell pwd)/:/fpm ghcr.io/sgtcodfish/fpm:1.14.0-6851b3d4 \
 		--input-type dir --output-type deb \
 		--name gomod \
