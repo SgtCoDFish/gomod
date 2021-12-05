@@ -1,5 +1,5 @@
 [Unit]
-Description=Gomod Simple Module Proxy
+Description=Gomod Simple Go Module Proxy
 After=network.target
 
 [Service]

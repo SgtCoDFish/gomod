@@ -1,6 +1,6 @@
 # Gomod
 
-A simple go module proxy to be run behind a reverse proxy.
+A simple go module proxy, currently designed to be run behind a reverse proxy.
 
 This is intentionally minimal for my own use cases, but it works well.
 
@@ -49,4 +49,3 @@ server {
 	}
 }
 ```
-

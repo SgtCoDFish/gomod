@@ -38,7 +38,7 @@ golangci-lint:
 .PHONY: binaries
 binaries: bin/gomod bin/gomod-linux-amd64 bin/gomod-linux-armv7l
 
-bin bin/pkg_amd64/usr/bin bin/pkg_armv7l/usr/bin:
+bin bin/pkg_amd64/usr/bin bin/pkg_armv7l/usr/bin bin/pkg_amd64/usr/lib/sysusers.d bin/pkg_armv7l/usr/lib/sysusers.d bin/pkg_amd64/usr/lib/systemd/system bin/pkg_armv7l/usr/lib/systemd/system:
 	@mkdir -p $@
 
 bin/gomod: cmd/gomod/main.go $(DEPS) | bin
@@ -60,7 +60,13 @@ debs: bin/gomod_$(VERSION)_amd64.deb bin/gomod_$(VERSION)_armv7l.deb
 bin/pkg_%/usr/bin/gomod: bin/gomod-linux-% | bin/pkg_%/usr/bin
 	cp $< $@
 
-bin/gomod_$(VERSION)_amd64.deb bin/gomod_$(VERSION)_armv7l.deb: bin/gomod_$(VERSION)_%.deb: bin/pkg_%/usr/bin/gomod | bin
+bin/pkg_%/usr/lib/systemd/system/gomod.service: dist/usr/lib/systemd/system/gomod.service | bin/pkg_%/usr/lib/systemd/system
+	cp $< $@
+
+bin/pkg_%/usr/lib/sysusers.d/gomod.conf: dist/usr/lib/sysusers.d/gomod.conf | bin/pkg_%/usr/lib/sysusers.d
+	cp $< $@
+
+bin/gomod_$(VERSION)_amd64.deb bin/gomod_$(VERSION)_armv7l.deb: bin/gomod_$(VERSION)_%.deb: bin/pkg_%/usr/bin/gomod bin/pkg_%/usr/lib/sysusers.d/gomod.conf bin/pkg_%/usr/lib/systemd/system/gomod.service | bin
 	@# fpm will refuse to overwrite an existing file so we need to remove first
 	rm -f $@
 	$(CTR) run -it --rm -v $(shell pwd)/:/fpm ghcr.io/sgtcodfish/fpm:1.14.0-6851b3d4 \
