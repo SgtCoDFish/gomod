@@ -54,6 +54,10 @@ bin/gomod-linux-armv7l: cmd/gomod/main.go $(DEPS) | bin
 test:
 	go test ./...
 
+.PHONY: systemd-activate
+systemd-activate: ./bin/gomod
+	systemd-socket-activate -l 127.0.0.1:14115 ./bin/gomod -systemd
+
 .PHONY: debs
 debs: bin/gomod_$(VERSION)_amd64.deb bin/gomod_$(VERSION)_armv7l.deb
 
@@ -61,6 +65,9 @@ bin/pkg_%/usr/bin/gomod: bin/gomod-linux-% | bin/pkg_%/usr/bin
 	cp $< $@
 
 bin/pkg_%/usr/lib/systemd/system/gomod.service: dist/usr/lib/systemd/system/gomod.service | bin/pkg_%/usr/lib/systemd/system
+	cp $< $@
+
+bin/pkg_%/usr/lib/systemd/system/gomod.socket: dist/usr/lib/systemd/system/gomod.socket | bin/pkg_%/usr/lib/systemd/system
 	cp $< $@
 
 bin/pkg_%/usr/lib/sysusers.d/gomod.conf: dist/usr/lib/sysusers.d/gomod.conf | bin/pkg_%/usr/lib/sysusers.d

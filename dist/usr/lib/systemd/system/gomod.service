@@ -5,7 +5,7 @@ After=network.target
 [Service]
 User=gomod
 Group=gomod
-ExecStart=/usr/bin/gomod -cache-dir /aid/gomod-cache
+ExecStart=/usr/bin/gomod -cache-dir /var/gomod-cache -systemd
 StandardOutput=journal
 StandardError=journal
 Type=simple
