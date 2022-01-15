@@ -4,7 +4,7 @@ GOFLAGS := -ldflags '-w -s' -trimpath
 GODEPS=cmd/gomod/main.go
 DEPS=$(GODEPS) go.mod go.sum
 
-VERSION := 0.0.1
+VERSION := 0.1.1
 
 CTR ?= podman
 
@@ -37,6 +37,10 @@ golangci-lint:
 
 .PHONY: binaries
 binaries: bin/gomod bin/gomod-linux-amd64 bin/gomod-linux-armv7l
+
+.PHONY: binaries-ctr
+binaries-ctr:
+	$(CTR) run -it --rm -v $(shell pwd)/:/usr/src/gomod -w /usr/src/gomod docker.io/library/golang:1.17-stretch make binaries
 
 bin bin/pkg_amd64/usr/bin bin/pkg_armv7l/usr/bin bin/pkg_amd64/usr/lib/sysusers.d bin/pkg_armv7l/usr/lib/sysusers.d bin/pkg_amd64/usr/lib/systemd/system bin/pkg_armv7l/usr/lib/systemd/system:
 	@mkdir -p $@
