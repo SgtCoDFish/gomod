@@ -1,21 +1,23 @@
+BINDIR=_bin
+
 GO=GCO_ENABLED=0 go
-GOFLAGS := -ldflags '-w -s' -trimpath
+GOFLAGS := -ldflags '-w -s -X main.version=$(VERSION)' -trimpath
 
 GODEPS=cmd/gomod/main.go
 DEPS=$(GODEPS) go.mod go.sum
 
-VERSION := 0.1.1
+VERSION := 0.2.0
 
 CTR ?= podman
 
 GOLANGCI_LINT ?= golangci-lint
 
 .PHONY: build
-build: bin/gomod
+build: $(BINDIR)/gomod
 
 .PHONY: clean
 clean:
-	@rm -rf bin
+	@rm -rf $(BINDIR)
 
 .PHONY: ci
 ci: test vet fmt golangci-lint binaries debs
@@ -36,22 +38,25 @@ golangci-lint:
 	@$(GOLANGCI_LINT) run
 
 .PHONY: binaries
-binaries: bin/gomod bin/gomod-linux-amd64 bin/gomod-linux-armv7l
+binaries: $(BINDIR)/gomod $(BINDIR)/gomod-linux-amd64 $(BINDIR)/gomod-linux-arm64 $(BINDIR)/gomod-linux-armv7l
 
 .PHONY: binaries-ctr
 binaries-ctr:
 	$(CTR) run -it --rm -v $(shell pwd)/:/usr/src/gomod -w /usr/src/gomod docker.io/library/golang:1.17-stretch make binaries
 
-bin bin/pkg_amd64/usr/bin bin/pkg_armv7l/usr/bin bin/pkg_amd64/usr/lib/sysusers.d bin/pkg_armv7l/usr/lib/sysusers.d bin/pkg_amd64/usr/lib/systemd/system bin/pkg_armv7l/usr/lib/systemd/system:
+$(BINDIR) $(BINDIR)/pkg_amd64/usr/bin $(BINDIR)/pkg_arm64/usr/bin $(BINDIR)/pkg_armv7l/usr/bin $(BINDIR)/pkg_amd64/usr/lib/sysusers.d $(BINDIR)/pkg_arm64/usr/lib/sysusers.d $(BINDIR)/pkg_armv7l/usr/lib/sysusers.d $(BINDIR)/pkg_amd64/usr/lib/systemd/system $(BINDIR)/pkg_arm64/usr/lib/systemd/system $(BINDIR)/pkg_armv7l/usr/lib/systemd/system:
 	@mkdir -p $@
 
-bin/gomod: cmd/gomod/main.go $(DEPS) | bin
+$(BINDIR)/gomod: cmd/gomod/main.go $(DEPS) | $(BINDIR)
 	$(GO) build $(GOFLAGS) -o $@ $<
 
-bin/gomod-linux-amd64: cmd/gomod/main.go $(DEPS) | bin
+$(BINDIR)/gomod-linux-amd64: cmd/gomod/main.go $(DEPS) | $(BINDIR)
 	GOOS=linux GOARCH=amd64 $(GO) build $(GOFLAGS) -o $@ $<
 
-bin/gomod-linux-armv7l: cmd/gomod/main.go $(DEPS) | bin
+$(BINDIR)/gomod-linux-arm64: cmd/gomod/main.go $(DEPS) | $(BINDIR)
+	GOOS=linux GOARCH=arm64 $(GO) build $(GOFLAGS) -o $@ $<
+
+$(BINDIR)/gomod-linux-armv7l: cmd/gomod/main.go $(DEPS) | $(BINDIR)
 	GOOS=linux GOARCH=arm GOARM=7 $(GO) build $(GOFLAGS) -o $@ $<
 
 .PHONY: test
@@ -59,32 +64,32 @@ test:
 	go test ./...
 
 .PHONY: systemd-activate
-systemd-activate: ./bin/gomod
-	systemd-socket-activate -l 127.0.0.1:14115 ./bin/gomod -systemd
+systemd-activate: ./$(BINDIR)/gomod
+	systemd-socket-activate -l 127.0.0.1:14115 ./$(BINDIR)/gomod -systemd
 
 .PHONY: debs
-debs: bin/gomod_$(VERSION)_amd64.deb bin/gomod_$(VERSION)_armv7l.deb
+debs: $(BINDIR)/gomod_$(VERSION)_amd64.deb $(BINDIR)/gomod_$(VERSION)_arm64.deb $(BINDIR)/gomod_$(VERSION)_armv7l.deb
 
-bin/pkg_%/usr/bin/gomod: bin/gomod-linux-% | bin/pkg_%/usr/bin
+$(BINDIR)/pkg_%/usr/bin/gomod: $(BINDIR)/gomod-linux-% | $(BINDIR)/pkg_%/usr/bin
 	cp $< $@
 
-bin/pkg_%/usr/lib/systemd/system/gomod.service: dist/usr/lib/systemd/system/gomod.service | bin/pkg_%/usr/lib/systemd/system
+$(BINDIR)/pkg_%/usr/lib/systemd/system/gomod.service: dist/usr/lib/systemd/system/gomod.service | $(BINDIR)/pkg_%/usr/lib/systemd/system
 	cp $< $@
 
-bin/pkg_%/usr/lib/systemd/system/gomod.socket: dist/usr/lib/systemd/system/gomod.socket | bin/pkg_%/usr/lib/systemd/system
+$(BINDIR)/pkg_%/usr/lib/systemd/system/gomod.socket: dist/usr/lib/systemd/system/gomod.socket | $(BINDIR)/pkg_%/usr/lib/systemd/system
 	cp $< $@
 
-bin/pkg_%/usr/lib/sysusers.d/gomod.conf: dist/usr/lib/sysusers.d/gomod.conf | bin/pkg_%/usr/lib/sysusers.d
+$(BINDIR)/pkg_%/usr/lib/sysusers.d/gomod.conf: dist/usr/lib/sysusers.d/gomod.conf | $(BINDIR)/pkg_%/usr/lib/sysusers.d
 	cp $< $@
 
-bin/gomod_$(VERSION)_amd64.deb bin/gomod_$(VERSION)_armv7l.deb: bin/gomod_$(VERSION)_%.deb: bin/pkg_%/usr/bin/gomod bin/pkg_%/usr/lib/sysusers.d/gomod.conf bin/pkg_%/usr/lib/systemd/system/gomod.service | bin
+$(BINDIR)/gomod_$(VERSION)_amd64.deb $(BINDIR)/gomod_$(VERSION)_arm64.deb $(BINDIR)/gomod_$(VERSION)_armv7l.deb: $(BINDIR)/gomod_$(VERSION)_%.deb: $(BINDIR)/pkg_%/usr/bin/gomod $(BINDIR)/pkg_%/usr/lib/sysusers.d/gomod.conf $(BINDIR)/pkg_%/usr/lib/systemd/system/gomod.service | $(BINDIR)
 	@# fpm will refuse to overwrite an existing file so we need to remove first
 	rm -f $@
 	$(CTR) run -it --rm -v $(shell pwd)/:/fpm ghcr.io/sgtcodfish/fpm:1.14.0-6851b3d4 \
 		--input-type dir --output-type deb \
 		--name gomod \
 		--package /fpm/$@ \
-		--chdir /fpm/bin/pkg_$* \
+		--chdir /fpm/$(BINDIR)/pkg_$* \
 		--vendor "Ashley Davis (SgtCoDFish)" \
 		--maintainer "Ashley Davis (SgtCoDFish)" \
 		--license "MIT" \
